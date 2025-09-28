@@ -21,7 +21,8 @@ impl GreetdThread {
     }
 
     async fn new(m_rx: Receiver<MessageToGreetd>, a_tx: Sender<AnswerFromGreetd>) -> Self {
-        todo!()
+        
+        GreetdThread {m_rx, a_tx}
     }
 
     async fn main_loop(mut self) {
