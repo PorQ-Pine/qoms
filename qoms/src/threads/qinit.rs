@@ -47,8 +47,10 @@ impl QinitThread {
     }
 
     async fn main_loop(self) {
+        info!("Qinit main loop entered");
+        let mut stream = UnixStream::connect(QINIT_SOCKET_PATH).await.unwrap();
         loop {
-            let mut stream = UnixStream::connect(QINIT_SOCKET_PATH).await.unwrap();
+            info!("Qinit main loop loop");
             stream
                 .write_all(
                     &postcard::to_allocvec::<CommandToQinit>(&CommandToQinit::GetLoginCredentials)
@@ -65,9 +67,15 @@ impl QinitThread {
                 libquillcom::socket::AnswerFromQinit::Login(login_form) => match login_form {
                     Some(credentials) => {
                         debug!("Received credentials from qinit: {:?}", credentials);
-                        self.greetd_sender.send(MessageToGreetd::LogIn(credentials.username, credentials.password)).await.unwrap();
+                        self.greetd_sender
+                            .send(MessageToGreetd::LogIn(
+                                credentials.username,
+                                credentials.password,
+                            ))
+                            .await
+                            .unwrap();
                         break;
-                    },
+                    }
                     None => (),
                 },
             }
