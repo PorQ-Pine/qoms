@@ -14,10 +14,11 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     info!("Qoms welcomes");
 
     let (message_to_greetd, answer_from_greetd) = GreetdThread::init().await;
+    let (message_to_greetd, answer_from_greetd) = QinitThread::init(message_to_greetd).await;
 
     // Testing
-    sleep(Duration::from_secs(3)).await;
-    message_to_greetd.send(MessageToGreetd::LogIn("root".to_string(), "rooD123".to_string())).await.unwrap();
+    // sleep(Duration::from_secs(3)).await;
+    // message_to_greetd.send(MessageToGreetd::LogIn("root".to_string(), "rooD123".to_string())).await.unwrap();
 
     // Final waiter
     tokio::signal::ctrl_c().await.unwrap();
