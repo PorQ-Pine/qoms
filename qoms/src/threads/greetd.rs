@@ -1,13 +1,23 @@
+use greetd_ipc::{ErrorType, Request, Response, codec::TokioCodec};
+use tokio::net::UnixStream;
+
 use crate::prelude::*;
 
-pub enum MessageToGreetd {}
+pub enum MessageToGreetd {
+    LogIn(String), // Provide the username
+}
 
-pub enum AnswerFromGreetd {}
+pub enum AnswerFromGreetd {
+    LoginStatus(bool),
+}
 
 pub struct GreetdThread {
+    greetd_socket_path: String,
     m_rx: Receiver<MessageToGreetd>,
     a_tx: Sender<AnswerFromGreetd>,
 }
+
+const SOCKET_READ_PATH: &'static str = "/tmp/qoms/greetd_sock_path.txt";
 
 impl GreetdThread {
     pub async fn init() -> (Sender<MessageToGreetd>, Receiver<AnswerFromGreetd>) {
@@ -21,15 +31,98 @@ impl GreetdThread {
     }
 
     async fn new(m_rx: Receiver<MessageToGreetd>, a_tx: Sender<AnswerFromGreetd>) -> Self {
-        
-        GreetdThread {m_rx, a_tx}
+        while !Path::new(SOCKET_READ_PATH).exists() {
+            sleep(Duration::from_millis(200)).await;
+        }
+        let greetd_socket_path = fs::read_to_string(SOCKET_READ_PATH)
+            .await
+            .unwrap()
+            .trim()
+            .to_string();
+        info!("greetd_socket_path: {}", greetd_socket_path);
+        GreetdThread {
+            m_rx,
+            a_tx,
+            greetd_socket_path,
+        }
     }
 
     async fn main_loop(mut self) {
         loop {
-            match self.m_rx.recv().await {
-                Some(_) => todo!(),
-                None => (),
+            if let Some(message) = self.m_rx.recv().await {
+                match message {
+                    MessageToGreetd::LogIn(username) => {
+                        info!("Received LogIn message for user: {}", username);
+                        match login(username, &self.greetd_socket_path).await {
+                            Ok(status) => match status {
+                                true => {
+                                    self.a_tx
+                                        .send(AnswerFromGreetd::LoginStatus(true))
+                                        .await
+                                        .unwrap();
+                                }
+                                false => {
+                                    error!("Failed to log in, but regular bool");
+                                    self.a_tx
+                                        .send(AnswerFromGreetd::LoginStatus(false))
+                                        .await
+                                        .unwrap();
+                                }
+                            },
+                            Err(err) => {
+                                error!("Failed to log in: {:?}", err);
+                                self.a_tx
+                                    .send(AnswerFromGreetd::LoginStatus(false))
+                                    .await
+                                    .unwrap();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+async fn login(username: String, greetd_sock: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    let mut stream = UnixStream::connect(greetd_sock).await?;
+
+    let mut next_request = Request::CreateSession { username };
+    let mut starting = false;
+    loop {
+        next_request.write_to(&mut stream).await?;
+
+        match Response::read_from(&mut stream).await? {
+            Response::AuthMessage {
+                auth_message,
+                auth_message_type,
+            } => {
+                debug!(
+                    "Received auth message: {:?} and {:?}",
+                    auth_message, auth_message_type
+                );
+            }
+            Response::Success => {
+                if starting {
+                    return Ok(true);
+                } else {
+                    starting = true;
+                    let command = "niri --session";
+                    next_request = Request::StartSession {
+                        env: vec![],
+                        cmd: vec![command.to_string()],
+                    }
+                }
+            }
+            Response::Error {
+                error_type,
+                description,
+            } => {
+                Request::CancelSession.write_to(&mut stream).await?;
+                match error_type {
+                    ErrorType::AuthError => return Ok(false),
+                    ErrorType::Error => return Err(format!("login error: {description:?}").into()),
+                }
             }
         }
     }

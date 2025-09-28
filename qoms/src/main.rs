@@ -9,7 +9,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     color_eyre::install()?;
     // The env is named RUST_LOG
     env_logger::init_from_env(
-        env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info"),
+        env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "debug"),
     );
     info!("Qoms welcomes");
 
