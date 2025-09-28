@@ -1,10 +1,11 @@
 use greetd_ipc::{ErrorType, Request, Response, codec::TokioCodec};
 use tokio::net::UnixStream;
+use greetd_ipc::AuthMessageType;
 
 use crate::prelude::*;
 
 pub enum MessageToGreetd {
-    LogIn(String), // Provide the username
+    LogIn(String, String), // Provide the username, password
 }
 
 pub enum AnswerFromGreetd {
@@ -51,9 +52,9 @@ impl GreetdThread {
         loop {
             if let Some(message) = self.m_rx.recv().await {
                 match message {
-                    MessageToGreetd::LogIn(username) => {
+                    MessageToGreetd::LogIn(username, password) => {
                         info!("Received LogIn message for user: {}", username);
-                        match login(username, &self.greetd_socket_path).await {
+                        match login(username, password, &self.greetd_socket_path).await {
                             Ok(status) => match status {
                                 true => {
                                     self.a_tx
@@ -84,7 +85,11 @@ impl GreetdThread {
     }
 }
 
-async fn login(username: String, greetd_sock: &str) -> Result<bool, Box<dyn std::error::Error>> {
+async fn login(
+    username: String,
+    password: String,
+    greetd_sock: &str,
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
     let mut stream = UnixStream::connect(greetd_sock).await?;
 
     let mut next_request = Request::CreateSession { username };
@@ -101,6 +106,20 @@ async fn login(username: String, greetd_sock: &str) -> Result<bool, Box<dyn std:
                     "Received auth message: {:?} and {:?}",
                     auth_message, auth_message_type
                 );
+                let response = match auth_message_type {
+                    AuthMessageType::Visible => Some(password.clone()),
+                    AuthMessageType::Secret => Some(password.clone()),
+                    AuthMessageType::Info => {
+                        eprintln!("info: {auth_message}");
+                        None
+                    }
+                    AuthMessageType::Error => {
+                        eprintln!("error: {auth_message}");
+                        None
+                    }
+                };
+
+                next_request = Request::PostAuthMessageResponse { response };
             }
             Response::Success => {
                 if starting {
