@@ -1,0 +1,10 @@
+[Unit]
+Description=QOMS Service
+After=graphical.target
+
+[Service]
+ExecStart=/opt/qoms/qoms
+Restart=on-failure
+
+[Install]
+WantedBy=graphical.target
