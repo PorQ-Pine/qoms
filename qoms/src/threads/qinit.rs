@@ -48,18 +48,36 @@ impl QinitThread {
 
     async fn main_loop(self) {
         info!("Qinit main loop entered");
-        let mut stream = UnixStream::connect(QINIT_SOCKET_PATH).await.unwrap();
         loop {
             info!("Qinit main loop loop");
+            let mut stream = UnixStream::connect(QINIT_SOCKET_PATH).await.unwrap();
             stream
-                .write_all(
+                .write(
                     &postcard::to_allocvec::<CommandToQinit>(&CommandToQinit::GetLoginCredentials)
                         .unwrap(),
                 )
                 .await
                 .unwrap();
+
             let mut message_bytes = Vec::new();
-            stream.read_to_end(&mut message_bytes).await.unwrap();
+            let mut attempts = 0;
+
+            loop {
+                let n = stream.read(&mut message_bytes).await.unwrap();
+                if n > 0 {
+                    break;
+                } else {
+                    attempts += 1;
+                    if attempts >= 3 {
+                        break;
+                    }
+                    sleep(Duration::from_millis(20)).await;
+                }
+            }
+
+            if message_bytes.is_empty() {
+                continue;
+            }
 
             match postcard::from_bytes::<libquillcom::socket::AnswerFromQinit>(&message_bytes)
                 .unwrap()
