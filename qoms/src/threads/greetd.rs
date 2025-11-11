@@ -1,6 +1,6 @@
+use greetd_ipc::AuthMessageType;
 use greetd_ipc::{ErrorType, Request, Response, codec::TokioCodec};
 use tokio::net::UnixStream;
-use greetd_ipc::AuthMessageType;
 
 use crate::prelude::*;
 
@@ -50,19 +50,21 @@ impl GreetdThread {
 
     async fn main_loop(mut self) {
         loop {
-            if let Some(message) = self.m_rx.recv().await {
-                match message {
+            match self.m_rx.recv().await {
+                Some(message) => match message {
                     MessageToGreetd::LogIn(username, password) => {
                         info!("Received LogIn message for user: {}", username);
                         match login(username, password, &self.greetd_socket_path).await {
                             Ok(status) => match status {
                                 true => {
+                                    info!("Login ruturned true");
                                     self.a_tx
                                         .send(AnswerFromGreetd::LoginStatus(true))
                                         .await
                                         .unwrap();
                                 }
                                 false => {
+                                    info!("Login ruturned false");
                                     error!("Failed to log in, but regular bool");
                                     self.a_tx
                                         .send(AnswerFromGreetd::LoginStatus(false))
@@ -79,8 +81,13 @@ impl GreetdThread {
                             }
                         }
                     }
+                },
+                None => {
+                    // error!("Channel closed, bad");
+                    sleep(Duration::from_millis(5000)).await;
                 }
             }
+            // info!("Greetd Thread main_loop loop");
         }
     }
 }
@@ -110,11 +117,11 @@ async fn login(
                     AuthMessageType::Visible => Some(password.clone()),
                     AuthMessageType::Secret => Some(password.clone()),
                     AuthMessageType::Info => {
-                        eprintln!("info: {auth_message}");
+                        info!("info: {auth_message}");
                         None
                     }
                     AuthMessageType::Error => {
-                        eprintln!("error: {auth_message}");
+                        info!("error: {auth_message}");
                         None
                     }
                 };
@@ -144,5 +151,7 @@ async fn login(
                 }
             }
         }
+        info!("Greetd loop");
+        sleep(Duration::from_millis(250)).await;
     }
 }

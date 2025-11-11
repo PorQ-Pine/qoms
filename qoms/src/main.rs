@@ -13,8 +13,8 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     );
     info!("Qoms welcomes");
 
-    let (message_to_greetd, answer_from_greetd) = GreetdThread::init().await;
-    let (message_to_greetd, answer_from_greetd) = QinitThread::init(message_to_greetd).await;
+    let (message_to_greetd, _answer_from_greetd) = GreetdThread::init().await;
+    let (_message_to_greetd, _answer_from_greetd) = QinitThread::init(message_to_greetd).await;
 
     // Testing
     // sleep(Duration::from_secs(3)).await;

@@ -7,6 +7,7 @@ pub enum MessageToQinitThread {}
 
 pub enum AnswerFromQinitThread {}
 
+#[allow(dead_code)]
 pub struct QinitThread {
     m_rx: Receiver<MessageToQinitThread>,
     a_tx: Sender<AnswerFromQinitThread>,
@@ -113,7 +114,8 @@ impl QinitThread {
                 },
             }
             sleep(Duration::from_millis(200)).await;
-            // info!("Loop iteration complete");
+            // info!("Qinit Loop");
         }
+        info!("Qinit main_loop exits");
     }
 }
