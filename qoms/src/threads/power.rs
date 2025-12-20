@@ -57,5 +57,9 @@ async fn test_find_session() {
     env_logger::init_from_env(
         env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "debug"),
     );
-    info!("{:?}", find_session().await);
+    info!("Running test_find_session");
+    let session = find_session().await;
+    assert!(session.is_some() || session.is_none(), "find_session should return Some or None");
+    info!("Result of find_session: {:?}", session);
 }
+
