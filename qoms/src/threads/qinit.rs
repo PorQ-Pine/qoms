@@ -1,50 +1,28 @@
-use libquillcom::socket::CommandToQinit;
+use libquillcom::socket::*;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::prelude::*;
-
-pub enum MessageToQinitThread {}
-
-pub enum AnswerFromQinitThread {}
+use crate::{prelude::*, threads::power::MessageToPower};
 
 #[allow(dead_code)]
 pub struct QinitThread {
-    m_rx: Receiver<MessageToQinitThread>,
-    a_tx: Sender<AnswerFromQinitThread>,
     greetd_sender: Sender<MessageToGreetd>,
+    power_tx: Sender<MessageToPower>,
 }
 
 const QINIT_SOCKET_PATH: &'static str = "/run/qinit_rootfs.sock";
 
 impl QinitThread {
-    pub async fn init(
-        greetd_sender: Sender<MessageToGreetd>,
-    ) -> (
-        Sender<MessageToQinitThread>,
-        Receiver<AnswerFromQinitThread>,
-    ) {
-        let (m_tx, m_rx) = mpsc::channel::<MessageToQinitThread>(LOW_COMM_BUFFER);
-        let (a_tx, a_rx) = mpsc::channel::<AnswerFromQinitThread>(LOW_COMM_BUFFER);
-        let qinit = QinitThread::new(m_rx, a_tx, greetd_sender).await;
+    pub async fn init(greetd_sender: Sender<MessageToGreetd>, power_tx: Sender<MessageToPower>) {
         tokio::spawn(async move {
+            while !Path::new(QINIT_SOCKET_PATH).exists() {
+                sleep(Duration::from_millis(200)).await;
+            }
+            let qinit = QinitThread {
+                greetd_sender,
+                power_tx,
+            };
             qinit.main_loop().await;
         });
-        (m_tx, a_rx)
-    }
-
-    async fn new(
-        m_rx: Receiver<MessageToQinitThread>,
-        a_tx: Sender<AnswerFromQinitThread>,
-        greetd_sender: Sender<MessageToGreetd>,
-    ) -> Self {
-        while !Path::new(QINIT_SOCKET_PATH).exists() {
-            sleep(Duration::from_millis(200)).await;
-        }
-        QinitThread {
-            m_rx,
-            a_tx,
-            greetd_sender,
-        }
     }
 
     async fn main_loop(self) {
@@ -92,10 +70,8 @@ impl QinitThread {
                 // info!("Received data: {:?}", message_bytes);
             }
 
-            match postcard::from_bytes::<libquillcom::socket::AnswerFromQinit>(&message_bytes)
-                .unwrap()
-            {
-                libquillcom::socket::AnswerFromQinit::Login(login_form) => match login_form {
+            match postcard::from_bytes::<AnswerFromQinit>(&message_bytes).unwrap() {
+                AnswerFromQinit::Login(login_form) => match login_form {
                     Some(credentials) => {
                         debug!("Received credentials from qinit: {:?}", credentials);
                         self.greetd_sender
@@ -112,6 +88,11 @@ impl QinitThread {
                         //info!("Login form was None")
                     }
                 },
+                AnswerFromQinit::SplashReady => {
+                    if let Err(err) = self.power_tx.send(MessageToPower::SplashScreenShown).await {
+                        error!("Failed to send to power: {:?}", err);
+                    }
+                }
             }
             sleep(Duration::from_millis(200)).await;
             // info!("Qinit Loop");

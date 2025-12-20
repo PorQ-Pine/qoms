@@ -507,14 +507,23 @@ dependencies = [
 name = "qoms"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "color-eyre",
  "env_logger",
  "greetd_ipc",
  "libquillcom",
  "log",
  "postcard",
+ "qoms_coms",
  "serde",
  "tokio",
+]
+
+[[package]]
+name = "qoms_coms"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

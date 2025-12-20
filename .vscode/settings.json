@@ -1,0 +1,7 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "${workspaceFolder}/qoms/Cargo.toml",
+        "${workspaceFolder}/qoms_coms/Cargo.toml",
+        "${workspaceFolder}/qoms_coms_bin/Cargo.toml",
+    ],
+}

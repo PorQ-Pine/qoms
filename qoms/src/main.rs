@@ -1,8 +1,9 @@
 pub mod consts;
 pub mod prelude;
 pub mod threads;
+pub mod common;
 
-use crate::{prelude::*};
+use crate::{prelude::*, threads::{power::PowerThread, qoms_socket::SocketThread}};
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
@@ -12,9 +13,10 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
         env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "debug"),
     );
     info!("Qoms welcomes");
-
+    let (splash_tx, power_tx) = PowerThread::init().await;
+    SocketThread::init(splash_tx).await;
     let (message_to_greetd, _answer_from_greetd) = GreetdThread::init().await;
-    let (_message_to_greetd, _answer_from_greetd) = QinitThread::init(message_to_greetd).await;
+    QinitThread::init(message_to_greetd, power_tx).await;
 
     // Testing
     // sleep(Duration::from_secs(3)).await;

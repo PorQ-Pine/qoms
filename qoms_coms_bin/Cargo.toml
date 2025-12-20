@@ -1,0 +1,9 @@
+[package]
+name = "send_qoms"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+qoms_coms = { path = "../qoms_coms" }
+postcard = { version = "1.0.8", features = ["alloc"] }
+serde = { version = "1.0.203", features = ["derive"] }
