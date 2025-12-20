@@ -1,3 +1,5 @@
+use std::os::unix::fs::PermissionsExt;
+
 use crate::prelude::*;
 use anyhow::Result;
 use qoms_coms::{QOMS_SOCKET_PATH, SendToQoms, Splash};
@@ -14,9 +16,6 @@ pub struct SocketThread {
 impl SocketThread {
     pub async fn init(splash_tx: Sender<Splash>) {
         tokio::spawn(async move {
-            while !Path::new(QOMS_SOCKET_PATH).exists() {
-                sleep(Duration::from_millis(200)).await;
-            }
             let power = SocketThread { splash_tx };
             power.main_loop().await;
         });
@@ -27,15 +26,20 @@ impl SocketThread {
 
         async fn open_listener() -> UnixListener {
             let path = std::path::Path::new(&QOMS_SOCKET_PATH);
+            if path.exists() {
+                let _ = fs::remove_file(&path).await;
+            }
+
             loop {
                 match UnixListener::bind(&path) {
-                    Ok(stream) => {
-                        info!("Successfully connected to socket: {:?}", path);
+                    Ok(listener) => {
+                        let _ = fs::set_permissions(&path, std::fs::Permissions::from_mode(0o777))
+                            .await;
+                        info!("Successfully created: {:?}", path);
                         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-                        return stream;
+                        return listener;
                     }
-                    Err(_e) => {
-                        // debug!("Waiting for socket at {}: {}", socket_path, e);
+                    Err(_) => {
                         tokio::time::sleep(tokio::time::Duration::from_millis(30)).await;
                     }
                 }
@@ -62,7 +66,7 @@ impl SocketThread {
                                 if let Err(err) = self.splash_tx.send(splash).await {
                                     error!("Failed to send splash: {:?}", err);
                                 }
-                            },
+                            }
                         }
                     } else {
                         error!("Failed to handle client for qoms socket");
