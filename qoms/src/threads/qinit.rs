@@ -1,10 +1,6 @@
 use libquillcom::socket::*;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::{
-    prelude::*,
-    threads::power::{find_session},
-};
+use crate::prelude::*;
 
 #[allow(dead_code)]
 pub struct QinitThread {

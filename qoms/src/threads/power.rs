@@ -1,8 +1,7 @@
 use crate::prelude::*;
 use libquillcom::socket::{AnswerFromQinit, CommandToQinit, PrimitiveShutDownType};
 use qoms_coms::{QOMS_SOCKET_PATH, Splash};
-use tokio::io::AsyncWriteExt;
-use tokio::time::{Instant, timeout};
+use tokio::time::timeout;
 
 #[allow(dead_code)]
 pub struct PowerThread {

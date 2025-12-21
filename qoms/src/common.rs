@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use anyhow::Result;
 use serde::{Serialize, de::DeserializeOwned};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
