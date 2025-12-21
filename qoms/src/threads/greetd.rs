@@ -18,24 +18,25 @@ pub struct GreetdThread {
     a_tx: Sender<AnswerFromGreetd>,
 }
 
-const SOCKET_READ_PATH: &'static str = "/tmp/qoms/greetd_sock_path.txt";
+const GREETD_SOCKET_READ_PATH: &'static str = "/tmp/qoms/greetd_sock_path.txt";
+const GREETD_BUGGER: usize = 10;
 
 impl GreetdThread {
     pub async fn init() -> (Sender<MessageToGreetd>, Receiver<AnswerFromGreetd>) {
-        let (m_tx, m_rx) = mpsc::channel::<MessageToGreetd>(LOW_COMM_BUFFER);
-        let (a_tx, a_rx) = mpsc::channel::<AnswerFromGreetd>(LOW_COMM_BUFFER);
-        let greetd = GreetdThread::new(m_rx, a_tx).await;
+        let (m_tx, m_rx) = mpsc::channel::<MessageToGreetd>(GREETD_BUGGER);
+        let (a_tx, a_rx) = mpsc::channel::<AnswerFromGreetd>(GREETD_BUGGER);
         tokio::spawn(async move {
+            let greetd = GreetdThread::new(m_rx, a_tx).await;
             greetd.main_loop().await;
         });
         (m_tx, a_rx)
     }
 
     async fn new(m_rx: Receiver<MessageToGreetd>, a_tx: Sender<AnswerFromGreetd>) -> Self {
-        while !Path::new(SOCKET_READ_PATH).exists() {
+        while !Path::new(GREETD_SOCKET_READ_PATH).exists() {
             sleep(Duration::from_millis(200)).await;
         }
-        let greetd_socket_path = fs::read_to_string(SOCKET_READ_PATH)
+        let greetd_socket_path = fs::read_to_string(GREETD_SOCKET_READ_PATH)
             .await
             .unwrap()
             .trim()
@@ -49,6 +50,7 @@ impl GreetdThread {
     }
 
     async fn main_loop(mut self) {
+        info!("Greetd main loop entered");
         loop {
             match self.m_rx.recv().await {
                 Some(message) => match message {
@@ -61,7 +63,7 @@ impl GreetdThread {
                                     self.a_tx
                                         .send(AnswerFromGreetd::LoginStatus(true))
                                         .await
-                                        .unwrap();
+                                        .ok();
                                 }
                                 false => {
                                     info!("Login ruturned false");
@@ -69,7 +71,7 @@ impl GreetdThread {
                                     self.a_tx
                                         .send(AnswerFromGreetd::LoginStatus(false))
                                         .await
-                                        .unwrap();
+                                        .ok();
                                 }
                             },
                             Err(err) => {

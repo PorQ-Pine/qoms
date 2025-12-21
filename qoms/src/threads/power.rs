@@ -1,35 +1,27 @@
 use crate::prelude::*;
-use libquillcom::socket::{CommandToQinit, PrimitiveShutDownType};
+use libquillcom::socket::{AnswerFromQinit, CommandToQinit, PrimitiveShutDownType};
 use qoms_coms::{QOMS_SOCKET_PATH, Splash};
 use tokio::io::AsyncWriteExt;
 use tokio::time::{Instant, timeout};
 
-#[derive(PartialEq)]
-pub enum MessageToPower {
-    SplashScreenShown,
-}
-
 #[allow(dead_code)]
 pub struct PowerThread {
     request_rx: Receiver<Splash>,
-    confirmation_rx: Receiver<MessageToPower>,
 }
 
 impl PowerThread {
-    pub async fn init() -> (Sender<Splash>, Sender<MessageToPower>) {
+    pub async fn init() -> Sender<Splash> {
         let (splash_tx, splash_rx) = mpsc::channel::<Splash>(LOW_COMM_BUFFER);
-        let (power_tx, power_rx) = mpsc::channel::<MessageToPower>(LOW_COMM_BUFFER);
         tokio::spawn(async move {
             while !Path::new(QOMS_SOCKET_PATH).exists() {
                 sleep(Duration::from_millis(200)).await;
             }
             let power = PowerThread {
                 request_rx: splash_rx,
-                confirmation_rx: power_rx,
             };
             power.main_loop().await;
         });
-        (splash_tx, power_tx)
+        splash_tx
     }
 
     async fn main_loop(mut self) {
@@ -57,8 +49,8 @@ impl PowerThread {
                     info!("Session terminated correctly");
                 }
 
-                // We wait a bit for the screen to stop screening because stupid tty and greetd
-                sleep(Duration::from_secs(3)).await;
+                // We wait for tty & niri & greetd to shut up
+                sleep(Duration::from_secs(14)).await;
 
                 let real_splash = match mess {
                     Splash::PowerOff => PrimitiveShutDownType::PowerOff,
@@ -67,47 +59,26 @@ impl PowerThread {
                 };
 
                 // Request splash screen
-                let mut stream = UnixStream::connect(QINIT_SOCKET_PATH).await.unwrap();
-                stream
-                    .write_all(
-                        &postcard::to_allocvec::<CommandToQinit>(&CommandToQinit::TriggerSplash(
-                            real_splash,
-                        ))
-                        .unwrap(),
-                    )
-                    .await
-                    .unwrap();
-                stream.shutdown().await.unwrap();
-
-                // Wait for confirmation
-                let deadline = Instant::now() + Duration::from_secs(10);
-                loop {
-                    let now = Instant::now();
-                    if now >= deadline {
-                        error!("Splash screen showing timed out");
-                        break;
-                    }
-
-                    let remaining = deadline - now;
-                    let result = timeout(remaining, self.confirmation_rx.recv()).await;
-
-                    match result {
-                        Ok(Some(xx)) => {
-                            if xx == MessageToPower::SplashScreenShown {
-                                info!("Splash screen shown correctly");
-                                break;
+                let answer = timeout(
+                    Duration::from_secs(10),
+                    read_write_socket::<CommandToQinit, AnswerFromQinit>(
+                        QINIT_SOCKET_PATH,
+                        CommandToQinit::TriggerSplash(real_splash),
+                    ),
+                )
+                .await;
+                match answer {
+                    Ok(answer2) => match answer2 {
+                        Ok(answer3) => {
+                            if answer3 == AnswerFromQinit::SplashReady {
+                                info!("Splash shown correctly");
                             } else {
-                                error!("This is not splash screen shown message, repair the code");
+                                error!("Received wrong answer in splash request?, {:?}", answer3);
                             }
-                        }
-                        Ok(None) => {
-                            error!("Failed to confirm splash because none?");
-                        }
-                        Err(_) => {
-                            error!("Recv attempt failed, retrying");
-                        }
-                    }
-                    sleep(Duration::from_secs(1)).await;
+                        },
+                        Err(err) => error!("Failed to recv answer to request splash screen: {:?}", err),
+                    },
+                    Err(_) => error!("Requesting splash screen timed out"),
                 }
 
                 // Do the action
@@ -137,9 +108,14 @@ pub async fn find_session() -> Option<(String, String)> {
         if line.contains("seat0") {
             let vec: Vec<String> = line.split(" ").map(|s| s.to_string()).collect();
             if vec.len() > 2 {
-                return Some((vec[0].clone(), vec[2].clone()));
+                if vec[2].clone() == "greetd" {
+                    continue;
+                }
+                let to_return = Some((vec[0].clone(), vec[2].clone()));
+                debug!("session: {:?}", to_return);
+                return to_return;
             }
-            return None
+            return None;
         }
     }
     None

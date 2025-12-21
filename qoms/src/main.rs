@@ -1,9 +1,12 @@
+pub mod common;
 pub mod consts;
 pub mod prelude;
 pub mod threads;
-pub mod common;
 
-use crate::{prelude::*, threads::{power::PowerThread, qoms_socket::SocketThread}};
+use crate::{
+    prelude::*,
+    threads::{power::PowerThread, qoms_socket::SocketThread},
+};
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
@@ -12,11 +15,14 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init_from_env(
         env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "debug"),
     );
-    info!("Qoms welcomes");
-    let (splash_tx, power_tx) = PowerThread::init().await;
+    info!("Qoms started");
+    let splash_tx = PowerThread::init().await;
     SocketThread::init(splash_tx).await;
-    let (message_to_greetd, _answer_from_greetd) = GreetdThread::init().await;
-    QinitThread::init(message_to_greetd, power_tx).await;
+    // Means we are logged in already. For deploy to work
+    if threads::power::find_session().await.is_none() {
+        let (message_to_greetd, _answer_from_greetd) = GreetdThread::init().await;
+        QinitThread::init(message_to_greetd).await;
+    }
 
     // Testing
     // sleep(Duration::from_secs(3)).await;
