@@ -1,7 +1,4 @@
 use crate::prelude::*;
-use libquillcom::socket::{AnswerFromQinit, CommandToQinit, PrimitiveShutDownType};
-use qoms_coms::{QOMS_SOCKET_PATH, Splash};
-use tokio::time::timeout;
 
 #[allow(dead_code)]
 pub struct PowerThread {
@@ -10,7 +7,7 @@ pub struct PowerThread {
 
 impl PowerThread {
     pub async fn init() -> Sender<Splash> {
-        let (splash_tx, splash_rx) = mpsc::channel::<Splash>(LOW_COMM_BUFFER);
+        let (splash_tx, splash_rx) = channel::<Splash>(LOW_COMM_BUFFER);
         tokio::spawn(async move {
             while !Path::new(QOMS_SOCKET_PATH).exists() {
                 sleep(Duration::from_millis(200)).await;

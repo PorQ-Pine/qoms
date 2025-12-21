@@ -3,10 +3,7 @@ pub mod consts;
 pub mod prelude;
 pub mod threads;
 
-use crate::{
-    prelude::*,
-    threads::{power::PowerThread, qoms_socket::SocketThread},
-};
+use crate::prelude::*;
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
@@ -21,7 +18,7 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     // Means we are logged in already. For deploy to work
     if threads::power::find_session().await.is_none() {
         let (message_to_greetd, _answer_from_greetd) = GreetdThread::init().await;
-        QinitThread::init(message_to_greetd).await;
+        LoginThread::init(message_to_greetd).await;
     }
 
     // Testing

@@ -1,29 +1,27 @@
-use libquillcom::socket::*;
-
 use crate::prelude::*;
 
 #[allow(dead_code)]
-pub struct QinitThread {
+pub struct LoginThread {
     greetd_sender: Sender<MessageToGreetd>,
 }
 
 pub const QINIT_SOCKET_PATH: &'static str = "/run/qinit_rootfs.sock";
 
-impl QinitThread {
+impl LoginThread {
     pub async fn init(greetd_sender: Sender<MessageToGreetd>) {
         tokio::spawn(async move {
             while !Path::new(QINIT_SOCKET_PATH).exists() {
                 sleep(Duration::from_millis(200)).await;
             }
-            let qinit = QinitThread {
+            let login = LoginThread {
                 greetd_sender,
             };
-            qinit.main_loop().await;
+            login.main_loop().await;
         });
     }
 
     async fn main_loop(self) {
-        info!("Qinit main loop entered");
+        info!("Login main loop entered");
         loop {
             let Ok(answer) = read_write_socket::<CommandToQinit, AnswerFromQinit>(
                 QINIT_SOCKET_PATH,
@@ -60,6 +58,6 @@ impl QinitThread {
             }
             sleep(Duration::from_millis(300)).await;
         }
-        info!("Qinit main_loop exits");
+        info!("Login main_loop exits");
     }
 }

@@ -1,7 +1,3 @@
-use greetd_ipc::AuthMessageType;
-use greetd_ipc::{ErrorType, Request, Response, codec::TokioCodec};
-use tokio::net::UnixStream;
-
 use crate::prelude::*;
 
 pub enum MessageToGreetd {
@@ -23,8 +19,8 @@ const GREETD_BUGGER: usize = 10;
 
 impl GreetdThread {
     pub async fn init() -> (Sender<MessageToGreetd>, Receiver<AnswerFromGreetd>) {
-        let (m_tx, m_rx) = mpsc::channel::<MessageToGreetd>(GREETD_BUGGER);
-        let (a_tx, a_rx) = mpsc::channel::<AnswerFromGreetd>(GREETD_BUGGER);
+        let (m_tx, m_rx) = channel::<MessageToGreetd>(GREETD_BUGGER);
+        let (a_tx, a_rx) = channel::<AnswerFromGreetd>(GREETD_BUGGER);
         tokio::spawn(async move {
             let greetd = GreetdThread::new(m_rx, a_tx).await;
             greetd.main_loop().await;

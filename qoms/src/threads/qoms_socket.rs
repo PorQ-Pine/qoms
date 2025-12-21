@@ -1,12 +1,4 @@
-use std::os::unix::fs::PermissionsExt;
-
 use crate::prelude::*;
-use anyhow::Result;
-use qoms_coms::{QOMS_SOCKET_PATH, SendToQoms, Splash};
-use tokio::{
-    io::{AsyncReadExt, BufReader},
-    net::UnixListener,
-};
 
 #[allow(dead_code)]
 pub struct SocketThread {
