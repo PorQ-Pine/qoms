@@ -56,7 +56,7 @@ impl PowerThread {
 
                 // Request splash screen
                 let answer = timeout(
-                    Duration::from_secs(10),
+                    Duration::from_secs(20),
                     read_write_socket::<CommandToQinit, AnswerFromQinit>(
                         QINIT_SOCKET_PATH,
                         CommandToQinit::TriggerSplash(real_splash),
