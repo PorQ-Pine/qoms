@@ -1,3 +1,9 @@
+use pinenote_service::{
+    drivers::rockchip_ebc::RockchipEbc,
+    pixel_manager::ComputedHints,
+    types::rockchip_ebc::{DitherMode, DriverMode, Hint, HintBitDepth, HintConvertMode, Mode},
+};
+
 use crate::prelude::*;
 
 #[allow(dead_code)]
@@ -45,8 +51,29 @@ impl PowerThread {
                     info!("Session terminated correctly");
                 }
 
+                // Change to y4
+                let ebc = RockchipEbc::new();
+                match ebc.set_mode(Mode {
+                    driver_mode: Some(DriverMode::Normal),
+                    dither_mode: Some(DitherMode::Bayer),
+                    redraw_delay: None,
+                }) {
+                    Ok(_) => info!("Set succesfully eink normal mode"),
+                    Err(err) => error!("Failed to set eink mode: {:?}", err),
+                }
+                let mut hints = ComputedHints::new();
+                hints.default_hint = Some(Hint::new(
+                    HintBitDepth::Y4,
+                    HintConvertMode::Threshold,
+                    false,
+                ));
+                match ebc.upload_rect_hints(hints) {
+                    Ok(_) => info!("Succesfully set Y4 mode"),
+                    Err(err) => error!("Failed to set Y4: {:?}", err),
+                }
+
                 // We wait for tty & niri & greetd to shut up
-                sleep(Duration::from_secs(14)).await;
+                sleep(Duration::from_secs(20)).await;
 
                 let real_splash = match mess {
                     Splash::PowerOff => PrimitiveShutDownType::PowerOff,
@@ -71,8 +98,10 @@ impl PowerThread {
                             } else {
                                 error!("Received wrong answer in splash request?, {:?}", answer3);
                             }
-                        },
-                        Err(err) => error!("Failed to recv answer to request splash screen: {:?}", err),
+                        }
+                        Err(err) => {
+                            error!("Failed to recv answer to request splash screen: {:?}", err)
+                        }
                     },
                     Err(_) => error!("Requesting splash screen timed out"),
                 }

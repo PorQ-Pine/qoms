@@ -21,3 +21,12 @@ serde = "1.0.219"
 
 # Power
 qoms_coms = { path = "../qoms_coms" }
+pinenote-service = { path = "../../pinenote_service/", default-features = false}
+
+[profile.release]
+debug = false
+overflow-checks = false
+lto = "fat"
+codegen-units = 1
+opt-level = 3
+strip = true
