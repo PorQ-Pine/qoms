@@ -55,14 +55,14 @@ impl GreetdThread {
                         match login(username, password, &self.greetd_socket_path).await {
                             Ok(status) => match status {
                                 true => {
-                                    info!("Login ruturned true");
+                                    info!("Login returned true");
                                     self.a_tx
                                         .send(AnswerFromGreetd::LoginStatus(true))
                                         .await
                                         .ok();
                                 }
                                 false => {
-                                    info!("Login ruturned false");
+                                    info!("Login returned false");
                                     error!("Failed to log in, but regular bool");
                                     self.a_tx
                                         .send(AnswerFromGreetd::LoginStatus(false))
