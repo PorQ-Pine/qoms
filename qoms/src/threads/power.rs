@@ -100,6 +100,9 @@ pub async fn find_session() -> Option<(String, String)> {
                 if vec[2].clone() == "greetd" {
                     continue;
                 }
+                if vec[0].clone().is_empty() {
+                    continue;
+                }
                 let to_return = Some((vec[0].clone(), vec[2].clone()));
                 debug!("session: {:?}", to_return);
                 return to_return;
@@ -124,10 +127,10 @@ async fn test_find_session() {
     info!("Result of find_session: {:?}", session);
 }
 
-pub async fn logout_session() -> Result<(), ()> {
+pub async fn logout_session() -> Result<()> {
     let Some((session, user)) = find_session().await else {
         error!("Failed to get session");
-        return Err(());
+        return Err(anyhow::Error::msg("Failed to find session"));
     };
 
     // Wait for the session to terminate, if not, we kill it
@@ -164,7 +167,52 @@ pub async fn logout_session() -> Result<(), ()> {
 
     // We wait for tty & niri & greetd to shut up
     // Idk if there is a better way.
-    sleep(Duration::from_secs(14)).await;
+    // Why so long...
+    sleep(Duration::from_secs(16)).await;
 
+    // Umount home dir
+    run_cmd("sync").await; // I love sync
+
+    let mut last_err = None;
+
+    for _ in 0..7 {
+        let output = match Command::new("umount")
+            .arg(&format!("/home/{}", user))
+            .output()
+            .await
+        {
+            Ok(o) => o,
+            Err(e) => {
+                last_err = Some(anyhow::Error::msg(format!(
+                    "failed to execute umount: {}",
+                    e
+                )));
+                warn!("{:?}", last_err);
+                sleep(Duration::from_secs(2)).await;
+                continue;
+            }
+        };
+
+        if output.status.success() {
+            last_err = None;
+            break;
+        } else {
+            last_err = Some(anyhow::Error::msg("umount failed: status"));
+            warn!("{:?}", last_err);
+            if !output.stderr.is_empty() {
+                warn!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+            }
+            sleep(Duration::from_secs(2)).await;
+        }
+    }
+
+    if let Some(err) = last_err {
+        error!("Last error: {:?}", err);
+        return Err(err);
+    }
+
+    run_cmd("sync").await; // I love sync
+    info!("Umounted succesfully!");
+    
     Ok(())
 }
