@@ -1,14 +1,15 @@
-use crate::prelude::*;
+use crate::{prelude::*, threads::login::MessageToLogin};
 
 #[allow(dead_code)]
 pub struct SocketThread {
     splash_tx: Sender<Splash>,
+    login_tx: Sender<MessageToLogin>,
 }
 
 impl SocketThread {
-    pub async fn init(splash_tx: Sender<Splash>) {
+    pub async fn init(splash_tx: Sender<Splash>, login_tx: Sender<MessageToLogin>) {
         tokio::spawn(async move {
-            let power = SocketThread { splash_tx };
+            let power = SocketThread { splash_tx, login_tx };
             power.main_loop().await;
         });
     }
@@ -59,6 +60,11 @@ impl SocketThread {
                                     error!("Failed to send splash: {:?}", err);
                                 }
                             }
+                            SendToQoms::RequestReLogin => {
+                                if let Err(err) = self.login_tx.send(MessageToLogin::ReLogin).await {
+                                    error!("Failed to send relogin: {:?}", err);
+                                }
+                            },
                         }
                     } else {
                         error!("Failed to handle client for qoms socket");

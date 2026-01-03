@@ -35,45 +35,9 @@ impl PowerThread {
                     continue;
                 }
 
-                let Some((session, user)) = find_session().await else {
-                    error!("Failed to get session");
-                    continue;
-                };
-
-                // Wait for the session to terminate, if not, we kill it
-                let terminate = format!("loginctl terminate-session {}", session).to_string();
-                let result = timeout(Duration::from_secs(5), run_cmd(&terminate)).await;
-                if result.is_err() {
-                    warn!("Session did not terminate, forcing it to cooperate");
-                    let kill = format!("loginctl kill-user {}", user).to_string();
-                    run_cmd(&kill).await;
-                } else {
-                    info!("Session terminated correctly");
+                if logout_session().await.is_err() {
+                    error!("Failed to logout, we continue anyway in power");
                 }
-
-                // Change to y4
-                let ebc = RockchipEbc::new();
-                match ebc.set_mode(Mode {
-                    driver_mode: Some(DriverMode::Normal),
-                    dither_mode: Some(DitherMode::Bayer),
-                    redraw_delay: None,
-                }) {
-                    Ok(_) => info!("Set succesfully eink normal mode"),
-                    Err(err) => error!("Failed to set eink mode: {:?}", err),
-                }
-                let mut hints = ComputedHints::new();
-                hints.default_hint = Some(Hint::new(
-                    HintBitDepth::Y4,
-                    HintConvertMode::Threshold,
-                    false,
-                ));
-                match ebc.upload_rect_hints(hints) {
-                    Ok(_) => info!("Succesfully set Y4 mode"),
-                    Err(err) => error!("Failed to set Y4: {:?}", err),
-                }
-
-                // We wait for tty & niri & greetd to shut up
-                sleep(Duration::from_secs(20)).await;
 
                 let real_splash = match mess {
                     Splash::PowerOff => PrimitiveShutDownType::PowerOff,
@@ -158,4 +122,49 @@ async fn test_find_session() {
         "find_session should return Some or None"
     );
     info!("Result of find_session: {:?}", session);
+}
+
+pub async fn logout_session() -> Result<(), ()> {
+    let Some((session, user)) = find_session().await else {
+        error!("Failed to get session");
+        return Err(());
+    };
+
+    // Wait for the session to terminate, if not, we kill it
+    let terminate = format!("loginctl terminate-session {}", session).to_string();
+    let result = timeout(Duration::from_secs(5), run_cmd(&terminate)).await;
+    if result.is_err() {
+        warn!("Session did not terminate, forcing it to cooperate");
+        let kill = format!("loginctl kill-user {}", user).to_string();
+        run_cmd(&kill).await;
+    } else {
+        info!("Session terminated correctly");
+    }
+
+    // Change to y4
+    let ebc = RockchipEbc::new();
+    match ebc.set_mode(Mode {
+        driver_mode: Some(DriverMode::Normal),
+        dither_mode: Some(DitherMode::Bayer),
+        redraw_delay: None,
+    }) {
+        Ok(_) => info!("Set succesfully eink normal mode"),
+        Err(err) => error!("Failed to set eink mode: {:?}", err),
+    }
+    let mut hints = ComputedHints::new();
+    hints.default_hint = Some(Hint::new(
+        HintBitDepth::Y4,
+        HintConvertMode::Threshold,
+        false,
+    ));
+    match ebc.upload_rect_hints(hints) {
+        Ok(_) => info!("Succesfully set Y4 mode"),
+        Err(err) => error!("Failed to set Y4: {:?}", err),
+    }
+
+    // We wait for tty & niri & greetd to shut up
+    // Idk if there is a better way.
+    sleep(Duration::from_secs(14)).await;
+
+    Ok(())
 }

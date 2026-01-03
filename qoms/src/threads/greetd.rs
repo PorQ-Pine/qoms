@@ -85,8 +85,9 @@ impl GreetdThread {
                     sleep(Duration::from_millis(5000)).await;
                 }
             }
-            // info!("Greetd Thread main_loop loop");
+            info!("Greetd Thread main_loop loop");
         }
+        // info!("Greetd main loop exit");
     }
 }
 

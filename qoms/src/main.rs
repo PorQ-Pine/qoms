@@ -3,7 +3,7 @@ pub mod consts;
 pub mod prelude;
 pub mod threads;
 
-use crate::prelude::*;
+use crate::{prelude::*, threads::login::MessageToLogin};
 
 #[tokio::main]
 pub async fn main() -> Result<(), Box<dyn Error>> {
@@ -14,12 +14,12 @@ pub async fn main() -> Result<(), Box<dyn Error>> {
     );
     info!("Qoms started");
     let splash_tx = PowerThread::init().await;
-    SocketThread::init(splash_tx).await;
-    // Means we are logged in already. For deploy to work
-    if threads::power::find_session().await.is_none() {
-        let (message_to_greetd, _answer_from_greetd) = GreetdThread::init().await;
-        LoginThread::init(message_to_greetd).await;
-    }
+    let (message_to_greetd, _answer_from_greetd) = GreetdThread::init().await;
+
+    let (login_tx, login_rx) = channel::<MessageToLogin>(LOW_COMM_BUFFER);
+
+    LoginThread::init(message_to_greetd, login_rx).await;
+    SocketThread::init(splash_tx, login_tx).await;
 
     // Testing
     // sleep(Duration::from_secs(3)).await;

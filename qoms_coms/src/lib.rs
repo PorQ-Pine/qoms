@@ -12,6 +12,7 @@ pub enum Splash {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum SendToQoms {
     RequestSplash(Splash),
+    RequestReLogin,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

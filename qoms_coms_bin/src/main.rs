@@ -31,6 +31,7 @@ fn main() -> io::Result<()> {
                 "poweroff" => SendToQoms::RequestSplash(PowerOff),
                 "reboot" => SendToQoms::RequestSplash(Reboot),
                 "sleep" => SendToQoms::RequestSplash(Sleep),
+                "relogin" => SendToQoms::RequestReLogin,
                 _ => {
                     eprintln!("Unknown request type: {}", request_type);
                     std::process::exit(1);
