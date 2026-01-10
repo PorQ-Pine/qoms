@@ -207,7 +207,8 @@ pub async fn logout_session() -> Result<()> {
     }
 
     if let Some(err) = last_err {
-        error!("Last error: {:?}", err);
+        error!("Failed to umount home dir, forcing it. Last error: {:?}", err);
+        run_cmd(&format!("umount -l -f /home/{}", user)).await;
         return Err(err);
     }
 
