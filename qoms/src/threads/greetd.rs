@@ -132,7 +132,7 @@ async fn login(
                     return Ok(true);
                 } else {
                     starting = true;
-                    let command = "niri --session";
+                    let command = "niri --session &>/dev/null";
                     next_request = Request::StartSession {
                         env: vec![],
                         cmd: vec![command.to_string()],
