@@ -1,9 +1,9 @@
-use qoms_coms::QOMS_SOCKET_PATH;
-use qoms_coms::SendToQoms;
+use qoms_lib::QOMS_SOCKET_PATH;
+use qoms_lib::SendToQoms;
 use std::env;
 use std::io::{self, Write};
 use std::os::unix::net::UnixStream;
-use qoms_coms::Splash::*;
+use qoms_lib::Splash::*;
 
 fn help() {
     eprintln!("Usage: <command> [args...]");

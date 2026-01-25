@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-qoms_coms = { path = "../qoms_coms" }
+qoms_lib = { path = "../qoms_lib" }
 postcard = { version = "1.0.8", features = ["alloc"] }
 serde = { version = "1.0.203", features = ["derive"] }

@@ -1,6 +1,6 @@
 use crate::{
     prelude::*,
-    threads::power::{find_session, logout_session},
+    threads::power::{logout_session},
 };
 
 pub enum MessageToLogin {
