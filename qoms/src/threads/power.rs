@@ -180,20 +180,20 @@ pub async fn logout_session() -> Result<()> {
             sleep(Duration::from_secs(2)).await;
         }
 
-        if i > 3 {
+        if i > 3 && i <= 5{
             // DIE
             warn!(
                 "Session doesn't want to die, killing it with loginctl kill-user --signal=SIGKILL"
             );
             run_cmd(&format!("loginctl kill-user --signal=SIGKILL {}", user).to_string()).await;
-            sleep(Duration::from_secs(2)).await;
+            sleep(Duration::from_secs(1)).await;
         }
 
         if i > 5 {
             // DDIIEE
             warn!("Session doesn't want to die, pkill -9 -u");
             run_cmd(&format!("pkill -9 -u {}", user).to_string()).await;
-            sleep(Duration::from_secs(2)).await;
+            sleep(Duration::from_secs(1)).await;
         }
     }
 
