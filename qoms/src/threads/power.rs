@@ -150,7 +150,7 @@ pub async fn logout_session() -> Result<()> {
 
     let mut last_err = None;
 
-    for i in 0..7 {
+    for i in 0..10 {
         let output = match Command::new("umount")
             .arg(&format!("/home/{}", user))
             .output()
@@ -182,14 +182,18 @@ pub async fn logout_session() -> Result<()> {
 
         if i > 3 {
             // DIE
-            warn!("Session doesn't want to die, killing it with loginctl kill-user --signal=SIGKILL");
+            warn!(
+                "Session doesn't want to die, killing it with loginctl kill-user --signal=SIGKILL"
+            );
             run_cmd(&format!("loginctl kill-user --signal=SIGKILL {}", user).to_string()).await;
+            sleep(Duration::from_secs(2)).await;
         }
 
         if i > 5 {
             // DDIIEE
             warn!("Session doesn't want to die, pkill -9 -u");
             run_cmd(&format!("pkill -9 -u {}", user).to_string()).await;
+            sleep(Duration::from_secs(2)).await;
         }
     }
 
