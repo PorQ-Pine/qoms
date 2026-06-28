@@ -114,8 +114,7 @@ pub async fn logout_session() -> Result<()> {
     let result = timeout(Duration::from_secs(5), run_cmd(&terminate)).await;
     if result.is_err() {
         warn!("Session did not terminate, forcing it to cooperate");
-        let kill = format!("loginctl kill-user {}", user).to_string();
-        run_cmd(&kill).await;
+        run_cmd(&format!("loginctl kill-user {}", user).to_string()).await;
     } else {
         info!("Session terminated correctly");
     }
@@ -151,7 +150,7 @@ pub async fn logout_session() -> Result<()> {
 
     let mut last_err = None;
 
-    for _ in 0..7 {
+    for i in 0..7 {
         let output = match Command::new("umount")
             .arg(&format!("/home/{}", user))
             .output()
@@ -180,16 +179,31 @@ pub async fn logout_session() -> Result<()> {
             }
             sleep(Duration::from_secs(2)).await;
         }
+
+        if i > 3 {
+            // DIE
+            warn!("Session doesn't want to die, killing it with loginctl kill-user --signal=SIGKILL");
+            run_cmd(&format!("loginctl kill-user --signal=SIGKILL {}", user).to_string()).await;
+        }
+
+        if i > 5 {
+            // DDIIEE
+            warn!("Session doesn't want to die, pkill -9 -u");
+            run_cmd(&format!("pkill -9 -u {}", user).to_string()).await;
+        }
     }
 
     if let Some(err) = last_err {
-        error!("Failed to umount home dir, forcing it. Last error: {:?}", err);
+        error!(
+            "Failed to umount home dir, forcing it. Last error: {:?}",
+            err
+        );
         run_cmd(&format!("umount -l -f /home/{}", user)).await;
         return Err(err);
     }
 
     run_cmd("sync").await; // I love sync
     info!("Umounted succesfully!");
-    
+
     Ok(())
 }
